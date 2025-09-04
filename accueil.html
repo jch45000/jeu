@@ -57,14 +57,18 @@
       const login = prompt("Choisissez un login :").trim();
       if (!login) return;
 
-      // Vérifier si le login existe déjà
-      const res = await fetch(API_URL + "?login=" + encodeURIComponent(login));
-      const existing = await res.json();
-      if (existing.length > 0) {
+      // Récupérer tous les comptes existants
+      const res = await fetch(API_URL);
+      const allUsers = await res.json();
+
+      // Vérifier si le login existe déjà (ignorer la casse)
+      const exists = allUsers.some(u => u.login.toLowerCase() === login.toLowerCase());
+      if (exists) {
         alert("Ce login existe déjà !");
         return;
       }
 
+      // Créer le compte
       await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,12 +84,17 @@
         alert("Veuillez entrer un login !");
         return;
       }
-      const res = await fetch(API_URL + "?login=" + encodeURIComponent(login));
-      const users = await res.json();
-      if (users.length === 0) {
+
+      const res = await fetch(API_URL);
+      const allUsers = await res.json();
+
+      // Vérifier si le login existe
+      const exists = allUsers.some(u => u.login.toLowerCase() === login.toLowerCase());
+      if (!exists) {
         alert("Login inconnu. Créez un compte d'abord !");
         return;
       }
+
       // Redirection vers le jeu avec le login en paramètre
       window.location.href = "index.html?login=" + encodeURIComponent(login);
     }
