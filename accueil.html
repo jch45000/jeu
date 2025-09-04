@@ -54,15 +54,18 @@
 
     // --- Création de compte ---
     async function creerCompte() {
-      const login = prompt("Choisissez un login :").trim();
-      if (!login) return;
+      const loginInput = prompt("Choisissez un login :");
+      if (!loginInput) return;
+
+      const login = loginInput.trim();
+      if (login === "") return;
 
       // Récupérer tous les comptes existants
       const res = await fetch(API_URL);
       const allUsers = await res.json();
 
-      // Vérifier si le login existe déjà (ignorer la casse)
-      const exists = allUsers.some(u => u.login.toLowerCase() === login.toLowerCase());
+      // Vérifier si le login existe déjà (ignorer espaces et casse)
+      const exists = allUsers.some(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
       if (exists) {
         alert("Ce login existe déjà !");
         return;
@@ -72,14 +75,15 @@
       await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login })
+        body: JSON.stringify({ login: login })
       });
       alert("Compte créé avec succès !");
     }
 
     // --- Vérifie le login avant de lancer le jeu ---
     async function verifierLogin() {
-      const login = document.getElementById('login').value.trim();
+      const loginInput = document.getElementById('login').value;
+      const login = loginInput.trim();
       if (login === "") {
         alert("Veuillez entrer un login !");
         return;
@@ -89,7 +93,7 @@
       const allUsers = await res.json();
 
       // Vérifier si le login existe
-      const exists = allUsers.some(u => u.login.toLowerCase() === login.toLowerCase());
+      const exists = allUsers.some(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
       if (!exists) {
         alert("Login inconnu. Créez un compte d'abord !");
         return;
