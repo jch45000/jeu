@@ -20,6 +20,12 @@
       font-family: system-ui, Arial, sans-serif;
     }
 
+    canvas {
+      background: black;
+      display: block;
+      margin: auto;
+    }
+
     .wrap {
       display: flex;
       align-items: center;
@@ -166,7 +172,7 @@
     <div id="hudLeft" class="chip">❤️❤️❤️</div>
     <div id="hudRight" class="chip">Portes : 1/4</div>
   </div>
-
+  <canvas id="canvas" width="800" height="600"></canvas>
   <!-- QUIZ -->
   <div id="quizOverlay" class="overlay" role="dialog" aria-modal="true">
     <div class="panel">
@@ -350,7 +356,13 @@
         function addCoinsBridge(p1, p2) {
           if (!p1 || !p2) return;
           const x1 = p1.x + p1.w * 0.7, y1 = p1.y - 20, x2 = p2.x + p2.w * 0.3, y2 = p2.y - 20, n = 5;
-          for (let i = 0; i <= n; i++) { const t = i / n; const xx = x1 + (x2 - x1) * t; const yy = (1 - t) * y1 + t * y2 - 30 * Math.sin(Math.PI * t); coins.push({ x: xx - 6, y: yy - 6, w: 12, h: 12, taken: false }); }
+          for (let i = 0; i <= n; i++) {
+            const t = i / n;
+            const xx = x1 + (x2 - x1) * t;
+            const yy = (1 - t) * y1 + t * y2 - 30 * Math.sin(Math.PI * t);
+            coins.push({ x: xx - 6, y: yy - 6, w: 12, h: 12, taken: false });
+          }
+
         }
         function addPlateforme() {
           let w = 180 + Math.floor(Math.random() * 60);
@@ -609,8 +621,31 @@
         const rectOverlap = (a, b) => (a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
 
         // ---------- LOOP ----------
-        let last = 0; function loop(t) { const dt = Math.min(33, t - last); last = t; update(dt / 16.67); render(); pressed.clear(); requestAnimationFrame(loop); } requestAnimationFrame(loop);
+        // récupérer le canvas défini dans index.html
+        const canvas = document.getElementById("canvas");
 
+        // Exemple : dessiner un carré rouge
+        ctx.fillStyle = "red";
+        ctx.fillRect(100, 100, 50, 50);
+        let last = 0;
+        let gameOver = false;
+
+        function loop(t) {
+          const dt = Math.min(33, t - last);
+          last = t;
+
+          if (!gameOver) {
+            update(dt / 16.67);
+            render();
+            pressed.clear();
+          } else {
+            renderGameOver(); // dessine l’écran de fin
+          }
+
+          requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
         // ---------- UPDATE ----------
         function update(dt) {
           if (game.mode === 'boss') { bossUpdate(dt); return; }
@@ -751,7 +786,61 @@
           const y = rect.top + ((wy * VIS) * (rect.height / VIEW_H));
           showHint(x, y, text);
         }
-        function loseLife() { lives = Math.max(0, lives - 1); sfxFail(); if (lives === 0) { lives = 3; } player.x = playerStart.x; player.y = playerStart.y; player.vx = 0; player.vy = 0; player.onGround = false; const vw = VIEW_W / VIS; camera.x = clamp(player.x - vw / 2, 0, Math.max(1, WORLD_W - vw)); }
+        function loseLife() {
+          lives = Math.max(0, lives - 1);
+          sfxFail();
+          console.log("lives = ", lives);
+          if (lives === 0) {
+            sauvegarderScore(login,coinCount)
+            gameOver = true;
+            console.log("GAME OVER");
+            return;
+          }
+
+          // reset joueur
+          player.x = playerStart.x;
+          player.y = playerStart.y;
+          player.vx = 0;
+          player.vy = 0;
+          player.onGround = false;
+
+          const vw = VIEW_W / VIS;
+          camera.x = clamp(player.x - vw / 2, 0, Math.max(1, WORLD_W - vw));
+        }
+        // Exemple de rendu d'un écran Game Over
+        function renderGameOver() {
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = "red";
+          ctx.font = "48px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
+
+          ctx.font = "24px Arial";
+          ctx.fillStyle = "white";
+          ctx.fillText("Appuie sur R pour recommencer", canvas.width / 2, canvas.height / 2 + 50);
+        }
+
+        // écouteur pour recommencer
+        document.addEventListener("keydown", (e) => {
+          if (gameOver && e.key.toLowerCase() === "r") {
+            restartGame();
+          }
+        });
+
+        function restartGame() {
+          lives = 3;
+          coinCount=0
+          player.x = playerStart.x;
+          player.y = playerStart.y;
+          player.vx = 0;
+          player.vy = 0;
+          player.onGround = false;
+          gameOver = false;
+          last = performance.now(); // éviter un saut au redémarrage
+        }
         function showHint(x, y, text) { const $h = document.getElementById('hint'); $h.textContent = text; $h.style.left = x + 'px'; $h.style.top = y + 'px'; $h.style.display = 'block'; clearTimeout(showHint._t); showHint._t = setTimeout(() => $h.style.display = 'none', 1400); }
 
         // ---------- RENDER ----------
@@ -1209,6 +1298,23 @@
         } catch (e) { }
       })();
     }
+    async function sauvegarderScore(login, score) {
+      const res = await fetch(API_URL);
+      const users = await res.json();
+      const user = users.find(u => u.login.toLowerCase() === login.toLowerCase());
+
+      if (!user) return;
+
+      // Met à jour le score uniquement si meilleur
+      const meilleur = Math.max(user.coincount || 0, score);
+
+      await fetch(`${API_URL}/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coincount: meilleur })
+      });
+    }
+
   </script>
 </body>
 

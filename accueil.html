@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
   <title>Accueil</title>
@@ -13,30 +14,53 @@
       margin: 0;
       background: #ececec;
     }
+
     .card {
       background: white;
       padding: 2rem;
       border-radius: 1rem;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
       text-align: center;
       width: 300px;
     }
-    .card input, .card button {
+
+    .card input,
+    .card button {
       display: block;
       width: 100%;
       margin: 0.5rem 0;
       padding: 0.7rem;
       font-size: 1rem;
     }
-    .btn-play { background: #4caf50; border: none; color: white; cursor: pointer; }
-    .btn-create { background: #2196f3; border: none; color: white; cursor: pointer; }
-    .btn-list { background: #ff9800; border: none; color: white; cursor: pointer; }
+
+    .btn-play {
+      background: #4caf50;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn-create {
+      background: #2196f3;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn-list {
+      background: #ff9800;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
     #listeComptes {
       margin-top: 1rem;
       text-align: left;
     }
   </style>
 </head>
+
 <body>
 
   <div id="accueil" class="card">
@@ -45,12 +69,14 @@
     <button class="btn-play" onclick="verifierLogin()">Jouer</button>
     <button class="btn-create" onclick="creerCompte()">Créer un compte</button>
     <button class="btn-list" onclick="afficherLogins()">Voir les comptes</button>
+    <button class="btn-list" onclick="window.location.href='scores.html'">Voir les scores</button>
+
     <div id="listeComptes"></div>
   </div>
 
   <script>
     // URL de ton endpoint MockAPI
-    const API_URL = "https://68b91513b71540504329ea40.mockapi.io/users";
+    const API_URL = "https://68c56943a712aaca2b68b12e.mockapi.io/users";
 
     // --- Création de compte ---
     async function creerCompte() {
@@ -120,4 +146,5 @@
   </script>
 
 </body>
+
 </html>
