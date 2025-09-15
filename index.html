@@ -791,7 +791,7 @@
           sfxFail();
           console.log("lives = ", lives);
           if (lives === 0) {
-            sauvegarderScore(login,coinCount)
+            sauvegarderScore(login, coinCount)
             gameOver = true;
             console.log("GAME OVER");
             return;
@@ -832,7 +832,7 @@
 
         function restartGame() {
           lives = 3;
-          coinCount=0
+          coinCount = 0
           player.x = playerStart.x;
           player.y = playerStart.y;
           player.vx = 0;
@@ -1298,22 +1298,36 @@
         } catch (e) { }
       })();
     }
+
     async function sauvegarderScore(login, score) {
+      const API_URL = "https://68b91513b71540504329ea40.mockapi.io/users";
+
+      // 1. Lecture des utilisateurs
       const res = await fetch(API_URL);
       const users = await res.json();
+      console.log("logins =", users)
+      // 2. Recherche de l'utilisateur par login
       const user = users.find(u => u.login.toLowerCase() === login.toLowerCase());
-
       if (!user) return;
+      console.log("logins =", users)
+      // 3. Conversion du score actuel en nombre
+      const ancienScore = Number(user.score) || 0;
+      const nouveauScore = Number(score);
 
-      // Met à jour le score uniquement si meilleur
-      const meilleur = Math.max(user.coincount || 0, score);
+      // 4. On garde le meilleur
+      const meilleur = Math.max(ancienScore, nouveauScore);
 
-      await fetch(`${API_URL}/${user.id}`, {
+      // 5. Sauvegarde via PUT (MockAPI accepte aussi PATCH)
+      let recup = await fetch(`${API_URL}/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coincount: meilleur })
+        body: JSON.stringify({ login : user.login,score: String(meilleur) }) // on renvoie une string
       });
+      if (!recup.ok) console.log("ko = ", recup.text())
+
+      console.log(`Score de ${login} mis à jour : ${meilleur}`);
     }
+
 
   </script>
 </body>

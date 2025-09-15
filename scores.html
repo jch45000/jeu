@@ -69,12 +69,12 @@
 
       // Trier par score décroissant
       const sorted = users
-        .filter(u => u.coincount !== undefined)
-        .sort((a, b) => (b.coincount || 0) - (a.coincount || 0));
+        .filter(u => Number(u.score) !== undefined)
+        .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
 
       const tbody = document.querySelector("#scoreTable tbody");
       tbody.innerHTML = sorted.map(u =>
-        `<tr><td>${u.login}</td><td>${u.coincount || 0}</td></tr>`
+        `<tr><td>${u.login}</td><td>${u.score || 0}</td></tr>`
       ).join("");
     }
 
