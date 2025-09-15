@@ -75,8 +75,9 @@
   </div>
 
   <script>
+
     // URL de ton endpoint MockAPI
-    const API_URL = "https://68c56943a712aaca2b68b12e.mockapi.io/users";
+    const API_URL = "https://68b91513b71540504329ea40.mockapi.io/users";
 
     // --- Création de compte ---
     async function creerCompte() {
@@ -98,11 +99,7 @@
       }
 
       // Créer le compte
-      await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login: login })
-      });
+      await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: login }) });
       alert("Compte créé avec succès !");
     }
 
