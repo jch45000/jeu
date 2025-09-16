@@ -229,22 +229,100 @@
       <div class="sub"><button id="bossBack" class="btn primary">Retour au monde</button></div>
     </div>
   </div>
+  <!-- Message du nouveau record (caché par défaut) -->
+  <div id="newRecord">NOUVEAU RECORD 🎉</div>
+
+  <style>
+    /* Message centré */
+    #newRecord {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3em;
+      font-weight: bold;
+      color: red;
+      text-align: center;
+      display: none;
+      /* caché au départ */
+      animation: blink 1s infinite;
+    }
+
+    /* Animation clignotante */
+    @keyframes blink {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+  </style>
+
+  <div id="restartHint">Appuyez sur la touche "R" pour recommencer</div>
+
+  <style>
+    #newRecord {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 3em;
+      font-weight: bold;
+      color: red;
+      text-align: center;
+      display: none;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* Indication en bas */
+    #restartHint {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2em;
+      color: gray;
+      font-style: italic;
+      display: none;
+    }
+  </style>
 
   <script>
     // Récupérer le login depuis l’URL
-    function getLogin() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("login");
-    }
-
-    const login = getLogin();
-    if (!login) {
-      // Si pas de login, retour à l'accueil
-      window.location.href = "accueil.html";
-    } else {
-      document.getElementById("welcome").textContent = "Bonjour " + login + " !";
+    // function getLogin() {
+    //   const params = new URLSearchParams(window.location.search);
+    //   return params.get("login");
+    // }
+    const params = new URLSearchParams(window.location.search);
+    const login = params.get("login");
+    const score = params.get("score");
+    // if (!login) window.location.href = "accueil.html";
+    if (login) {
+      document.getElementById("welcome").innerHTML =
+        '<span style="color:green; font-weight:bold;">Bonjour ' + login + ' !</span><br>' +
+        '<span id="bestScore" style="color:blue;">Ton meilleur score = ' + (score ?? 0) + '</span>';
       lancerJeu();
-    }
+    } else window.location.href = "accueil.html"
 
     // Ton code de jeu
     function lancerJeu() {
@@ -792,6 +870,7 @@
           console.log("lives = ", lives);
           if (lives === 0) {
             sauvegarderScore(login, coinCount)
+            document.getElementById("restartHint").style.display = "block";
             gameOver = true;
             console.log("GAME OVER");
             return;
@@ -831,6 +910,9 @@
         });
 
         function restartGame() {
+          document.getElementById("newRecord").style.display = "none";
+          document.getElementById("restartHint").style.display = "none";
+          document.getElementById("bestScore").style.display = "none";
           lives = 3;
           coinCount = 0
           player.x = playerStart.x;
@@ -1313,6 +1395,7 @@
       // 3. Conversion du score actuel en nombre
       const ancienScore = Number(user.score) || 0;
       const nouveauScore = Number(score);
+      if (nouveauScore > ancienScore) document.getElementById("newRecord").style.display = "block";
 
       // 4. On garde le meilleur
       const meilleur = Math.max(ancienScore, nouveauScore);
@@ -1321,7 +1404,7 @@
       let recup = await fetch(`${API_URL}/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login : user.login,score: String(meilleur) }) // on renvoie une string
+        body: JSON.stringify({ login: user.login, score: String(meilleur) }) // on renvoie une string
       });
       if (!recup.ok) console.log("ko = ", recup.text())
 
