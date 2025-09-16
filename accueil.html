@@ -115,15 +115,19 @@
       const res = await fetch(API_URL);
       const allUsers = await res.json();
 
-      // Vérifier si le login existe
-      const exists = allUsers.some(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
-      if (!exists) {
+      // Trouver l'utilisateur correspondant
+      const user = allUsers.find(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
+
+      if (!user) {
         alert("Login inconnu. Créez un compte d'abord !");
         return;
       }
 
-      // Redirection vers le jeu avec le login en paramètre
-      window.location.href = "index.html?login=" + encodeURIComponent(login);
+      // Récupérer le score
+      const score = user.score ?? 0; // si pas de score, mettre 0
+
+      // Redirection vers le jeu avec login ET score dans l’URL
+      window.location.href = "index.html?login=" + encodeURIComponent(login) + "&score=" + encodeURIComponent(score);
     }
 
     // --- Afficher la liste des logins ---
