@@ -158,6 +158,21 @@
       font-size: 14px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
     }
+
+    /* Style simple pour la page d'aide */
+    #guideOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      z-index: 9999;
+    }
   </style>
 </head>
 
@@ -165,6 +180,7 @@
   <h2>Bienvenue dans le jeu 🎮</h2>
   <p id="welcome"></p>
   <div id="zoneJeu"></div>
+  <div id="guideOverlay" style="display: none;"></div>
   <div class="wrap">
     <canvas id="game" width="960" height="720" tabindex="0" aria-label="Jeu de plateforme CE1 – Monde 1"></canvas>
   </div>
@@ -172,6 +188,7 @@
     <div id="hudLeft" class="chip">❤️❤️❤️</div>
     <div id="hudRight" class="chip">Portes : 1/4</div>
   </div>
+
   <canvas id="canvas" width="800" height="600"></canvas>
   <!-- QUIZ -->
   <div id="quizOverlay" class="overlay" role="dialog" aria-modal="true">
@@ -308,11 +325,6 @@
   </style>
 
   <script>
-    // Récupérer le login depuis l’URL
-    // function getLogin() {
-    //   const params = new URLSearchParams(window.location.search);
-    //   return params.get("login");
-    // }
     const params = new URLSearchParams(window.location.search);
     const login = params.get("login");
     const score = params.get("score");
@@ -558,34 +570,117 @@
         const $hudLeft = document.getElementById('hudLeft'); const $hudRight = document.getElementById('hudRight');
 
         // ---------- QUIZ ----------
-        const $quiz = document.getElementById('quizOverlay'), $op = document.getElementById('operation'), $ans = document.getElementById('answer'), $progressCount = document.getElementById('progressCount'), $quizTitle = document.getElementById('quizTitle');
+        const $quiz = document.getElementById('quizOverlay'),
+          $op = document.getElementById('operation'),
+          $ans = document.getElementById('answer'),
+          $progressCount = document.getElementById('progressCount'),
+          $quizTitle = document.getElementById('quizTitle');
+
         const $result = document.getElementById('resultOverlay'), $scoreText = document.getElementById('scoreText'), $resultMsg = document.getElementById('resultMsg'), $resultTitle = document.getElementById('resultTitle'), $pie = document.getElementById('pie'), $timer = document.getElementById('timer');
         const $hint = document.getElementById('hint'); const $hintCanvas = document.getElementById('hintCanvas'); const $btnReview = document.getElementById('review');
 
         function gen1_std() { let a, b; do { a = rint(1, 9); b = rint(1, 9); } while (a + b > 9); return { type: 'A_STD_R', a, b, c: a + b }; }
         function gen1_missing() { let a, b, c, side = Math.random() < 0.5 ? 'L' : 'R'; do { a = rint(1, 8); b = rint(1, 8); c = a + b; } while (c > 9); return side === 'L' ? { type: 'A_MISS_L', a: null, b, c } : { type: 'A_MISS_R', a, b: null, c }; }
         function gen1_resEither() { let a, b; do { a = rint(1, 9); b = rint(1, 9); } while (a + b > 9); return Math.random() < 0.5 ? { type: 'A_RES_L', a, b, c: a + b } : { type: 'A_STD_R', a, b, c: a + b }; }
-        function renderOp(it) { switch (it.type) { case 'A_STD_R': return `${it.a} + ${it.b} = ?`; case 'A_MISS_L': return `? + ${it.b} = ${it.c}`; case 'A_MISS_R': return `${it.a} + ? = ${it.c}`; case 'A_RES_L': return `? = ${it.a} + ${it.b}`; } }
+        function renderOp(it) {
+          switch (it.type) {
+            case 'A_STD_R': return `${it.a} + ${it.b} = ?`;
+            case 'A_MISS_L': return `? + ${it.b} = ${it.c}`;
+            case 'A_MISS_R': return `${it.a} + ? = ${it.c}`;
+            case 'A_RES_L': return `? = ${it.a} + ${it.b}`;
+          }
+        }
+
         function expected(it) { switch (it.type) { case 'A_STD_R': return it.c; case 'A_MISS_L': return it.c - it.b; case 'A_MISS_R': return it.c - it.a; case 'A_RES_L': return it.c; } }
         function genItemsForLevel(i) { const arr = []; while (arr.length < 10) { let it = null; if (i === 0) it = gen1_std(); else if (i === 1) it = gen1_missing(); else if (i === 2) it = gen1_resEither(); else it = [gen1_std, gen1_missing, gen1_resEither][rint(0, 2)](); if (!arr.some(o => renderOp(o) === renderOp(it))) arr.push(it); } return arr; }
 
         let quiz = { levelIndex: 0, items: [], i: 0, ok: 0, time: 45, timerId: null, wrongs: [], isReview: false };
-        function showQuiz(levelIndex) {
+
+        async function showQuiz(levelIndex) {
           game.mode = 'quiz';
-          quiz = { levelIndex, items: genItemsForLevel(levelIndex), i: 0, ok: 0, time: 45, timerId: null, wrongs: [], isReview: false };
-          $quiz.style.display = 'flex'; $quizTitle.textContent = `Niveau ${doorLabels[levelIndex]}`; $timer.classList.remove('low'); $hintCanvas.style.display = 'none';
-          updQuizUI(); setTimeout(() => $ans.focus(), 40); stopAmbient(); startQuizMusic(); startTimer();
+
+          quiz = {
+            levelIndex,
+            items: genItemsForLevel(levelIndex),
+            i: 0,
+            ok: 0,
+            time: 45,
+            timerId: null,
+            wrongs: [],
+            isReview: false
+          };
+          await guide(doorLabels[levelIndex]);
+          $quiz.style.display = 'flex';
+          $quizTitle.textContent = `Niveau ${doorLabels[levelIndex]}`;
+          $timer.classList.remove('low');
+          $hintCanvas.style.display = 'none';
+          updQuizUI();
+          setTimeout(() => $ans.focus(), 40);
+          stopAmbient();
+          startQuizMusic();
+          startTimer();
         }
+
+
         function showQuizReview(levelIndex, wrongs) {
           if (!wrongs || !wrongs.length) { return; }
           game.mode = 'quiz';
-          quiz = { levelIndex, items: wrongs.map(w => ({ ...w })), i: 0, ok: 0, time: 45, timerId: null, wrongs: [], isReview: true };
+          quiz = {
+            levelIndex,
+            items: wrongs.map(w => ({ ...w })),
+            i: 0,
+            ok: 0,
+            time: 45,
+            timerId: null,
+            wrongs: [],
+            isReview: true
+          };
           $quiz.style.display = 'flex'; $quizTitle.textContent = `Révision ${doorLabels[levelIndex]}`; $timer.classList.remove('low');
           $hintCanvas.style.display = 'block';
-          updQuizUI(); setTimeout(() => $ans.focus(), 40); stopAmbient(); startQuizMusic(); startTimer();
+          updQuizUI();
+          setTimeout(() => $ans.focus(), 40);
+          stopAmbient();
+          startQuizMusic();
+          startTimer();
         }
+
+        function guide(x) {
+          return new Promise((resolve) => {
+            const overlay = document.getElementById("guideOverlay");
+            let helpText = "";
+            console.log("X=",x)
+            switch (x) {
+              case '1-1': helpText = "BIENVENUE A LA PORTE N°1 !<br><br> Exercice : trouvez le résultat de l'addition<br><br>Exemple : 4 + 1 = ?<br><br>Réponse : 5"; break;
+              case '1-2': helpText = "BIENVENUE A LA PORTE N°2 !<br><br> Exercice : trouvez la valeur de l'inconnue pour avoir l'égalitén<br><br>Exemple : 1 + ? = 5<br><br>Réponse : 4"; break;
+              case '1-3': helpText = "BIENVENUE A LA PORTE N°3 !<br><br> Exercice : trouvez le résultat de l'addition<br><br>Exemple : 4 + 1 = ?<br><br>Réponse : 5"; break;
+              case '1-4': helpText = "BIENVENUE A LA PORTE N°4 !<br><br> Exercice : trouvez le résultat de l'addition ou la valeur de l'inconnue<br><br>"; break;
+            }
+            // Afficher le texte
+            overlay.innerHTML = helpText + "<br><br><em>(Appuyez sur Entrée pour continuer)</em>";
+            overlay.style.display = "block";
+            // Attendre la touche Enter pour fermer
+            function onKeyDown(e) {
+              if (e.key === "Enter") {
+                overlay.style.display = "none";
+                document.removeEventListener("keydown", onKeyDown);
+                resolve(); // on débloque la suite
+              }
+            }
+
+            document.addEventListener("keydown", onKeyDown);
+          })
+        }
+
         function hideQuiz() { $quiz.style.display = 'none'; stopTimer(); stopQuizMusic(); startAmbient(); game.mode = 'world'; }
-        function updQuizUI() { const it = quiz.items[quiz.i]; $op.textContent = renderOp(it); $progressCount.textContent = (quiz.i + 1).toString(); $ans.value = ''; if (quiz.isReview) drawHintFor(it); }
+
+        function updQuizUI() {
+          const it = quiz.items[quiz.i];
+          $op.textContent = renderOp(it);
+          $progressCount.textContent = (quiz.i + 1).toString();
+          $ans.value = '';
+          if (quiz.isReview) drawHintFor(it);
+        }
+
         function validateCurrent() {
           const it = quiz.items[quiz.i]; const v = parseInt($ans.value, 10);
           const ok = !Number.isNaN(v) && v === expected(it);
@@ -596,7 +691,16 @@
         document.getElementById('skip').addEventListener('click', validateCurrent);
         document.getElementById('quit').addEventListener('click', hideQuiz);
 
-        function startTimer() { stopTimer(); $timer.textContent = `⏱️ ${quiz.time} s`; quiz.timerId = setInterval(() => { quiz.time--; $timer.textContent = `⏱️ ${quiz.time} s`; if (quiz.time <= 10) $timer.classList.add('low'); if (quiz.time <= 0) { stopTimer(); endQuiz(true); } }, 1000); }
+        function startTimer() {
+          stopTimer();
+          $timer.textContent = `⏱️ ${quiz.time} s`;
+          quiz.timerId = setInterval(() => {
+            quiz.time--; $timer.textContent = `⏱️ ${quiz.time} s`;
+            if (quiz.time <= 10) $timer.classList.add('low');
+            if (quiz.time <= 0) { stopTimer(); endQuiz(true); }
+          }, 1000);
+        }
+
         function stopTimer() { if (quiz.timerId) { clearInterval(quiz.timerId); quiz.timerId = null; } }
 
         // Camembert robuste
@@ -828,7 +932,7 @@
             // Portes 1-x
             const d = doors.find(d => Math.abs((player.x + player.w / 2) - (d.x + 15)) < 20 && Math.abs((player.y + player.h) - (d.y + 40)) < 40);
             if (d) {
-              if (isDoorUnlocked(d.index)) { showQuiz(d.index); }
+              if (isDoorUnlocked(d.index)) showQuiz(d.index);
               else { showNearHint(d.x + 15, d.y, 'Porte verrouillée : réussis la précédente (≥ 8/10)'); }
             } else {
               // Boss door AABB robuste
