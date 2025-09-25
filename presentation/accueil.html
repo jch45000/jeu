@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Menu</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    h1 {
+      margin-bottom: 40px;
+    }
+    button {
+      display: block;
+      margin: 15px auto;
+      padding: 12px 25px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Choisissez votre classe</h1>
+  
+  <button onclick="ouvrirLien(1)">CE1</button>
+  <button onclick="ouvrirLien(2)">CE2</button>
+  <button onclick="ouvrirLien(3)">CM1</button>
+  <button onclick="ouvrirLien(4)">CM2</button>
+
+  <script>
+    function ouvrirLien(num) {
+      let url = "";
+      switch(num) {
+        case 1: url = "https://jch45000.github.io/jeu/accueil.html"; break;
+        case 2: url = "https://jch45000.github.io/jeu/page2.html"; break;
+        case 3: url = "https://jch45000.github.io/jeu/page3.html"; break;
+        case 4: url = "https://jch45000.github.io/jeu/page4.html"; break;
+      }
+      if (url) {
+        window.location.href = url; // ouvre dans la même page
+        // ou bien : window.open(url, "_blank"); // pour ouvrir dans un nouvel onglet
+      }
+    }
+  </script>
+</body>
+</html>
