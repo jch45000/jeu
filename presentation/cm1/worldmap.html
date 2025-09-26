@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Carte – Mondes (améliorée)</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#bde9ff; --bg2:#8fd3ff; --bg3:#78c5ff;
+    --locked:#9e9e9e; --unlocked:#ffd54f; --passed:#1eb980; --boss:#e53935;
+    --ink:#14202a;
+    --worldHue: 210; /* sera surchargé par monde */
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2) 65%,var(--bg3));font-family:system-ui, Arial}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px 16px 136px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  h1{font-family:"Bungee",system-ui;letter-spacing:.5px;margin:0;font-size:clamp(18px,3.2vw,28px);color:#0b3a59}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:14px;color:#123}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#ffffffc7;box-shadow:0 2px 8px #0002}
+  .dot{width:14px;height:14px;border-radius:50%}
+
+  /* ===== Monde Strip (tabs améliorées et scrollables) ===== */
+  .worldStripWrap{position:relative;margin:8px 0 10px}
+  .worldStrip{display:flex;gap:10px;overflow:auto;padding-bottom:4px;scroll-snap-type:x mandatory}
+  .wcard{min-width:240px;scroll-snap-align:start;border:none;border-radius:14px;padding:10px 12px;background:#eef7ff;color:#0b3a59;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+  .wcard.active{background:#1976d2;color:#fff;box-shadow:0 2px 10px #0003}
+  .wname{font-weight:800}
+  .wmeta{font-size:12px;opacity:.9}
+  .wbtn{position:absolute;top:50%;transform:translateY(-50%);border:none;background:#ffffffaa;border-radius:999px;box-shadow:0 4px 10px #0003;padding:8px;cursor:pointer}
+  .wbtn.left{left:-6px} .wbtn.right{right:-6px}
+
+  .mapBox{position:relative;aspect-ratio: 16 / 9;background:radial-gradient(120% 90% at 50% 10%, #ffffffaa, #ffffff00 38%), linear-gradient(180deg,#d7f0ff55,#ffffff00 30%), transparent;border-radius:16px;box-shadow:0 12px 32px #00000025;overflow:hidden}
+  svg#map{width:100%;height:100%;display:block}
+
+  /* Parallaxe nuages */
+  .cloud{opacity:.22;animation:cloud 60s linear infinite}
+  .cloud.slow{animation-duration:90s}
+  .cloud.fast{animation-duration:45s;opacity:.28}
+  @keyframes cloud{from{transform:translateX(-5%)} to{transform:translateX(105%)}}
+
+  .node circle.base{fill:#fff;stroke:#0c2a3a;stroke-width:2}
+  .node text.label{font-family:"Bungee",system-ui;font-size:18px;letter-spacing:.3px;fill:var(--ink);text-anchor:middle;dominant-baseline:middle}
+  .node.locked circle.base{fill:#f5f5f5;stroke:#777}
+  .node.locked .halo{display:none}
+  .node.unlocked circle.base{fill:#fff7e0;stroke:#caa56a}
+  .node.passed circle.base{fill:#eaffe9;stroke:#178f6f}
+  .ring{fill:none;stroke-width:6;stroke-linecap:round;opacity:.5}
+  .ring.locked{stroke:var(--locked)}
+  .ring.unlocked{stroke:var(--unlocked)}
+  .ring.passed{stroke:var(--passed)}
+  .ring.boss{stroke:var(--boss)}
+  .halo{fill:none;stroke:#ffd54f;stroke-width:10;opacity:.0}
+  .node.focus .halo{animation:halo 1.6s ease-in-out infinite}
+  @keyframes halo{0%{opacity:.0; r:34} 50%{opacity:.5; r:46} 100%{opacity:.0; r:34}}
+
+  .track{fill:none;stroke:#2b5c7a22;stroke-width:18;stroke-linecap:round}
+  .trackOutline{fill:none;stroke:#ffffff99;stroke-width:8;stroke-linecap:round}
+  .trackUnlocked{fill:none;stroke:#ffd54f;stroke-width:8;stroke-linecap:round;stroke-dasharray:14 10;animation:dash 2.5s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-100}}
+
+  .ribbonSoon{position:absolute;right:-38px;top:16px;background:#ffcc80;color:#5d3d00;font-weight:700;transform:rotate(30deg);padding:8px 60px;border-radius:6px;box-shadow:0 6px 16px #0003}
+  .hint{position:absolute;font-size:13px;color:#445;background:#fff8de;border:1px dashed #d3b46c;border-radius:8px;padding:6px 10px;display:none;gap:6px;align-items:center}
+
+  /* Tooltips */
+  .node .tt { pointer-events:none; transform:translate(-50%,-62px);
+    font-size:12px; background:#fff; color:#123; padding:6px 8px; border-radius:8px;
+    box-shadow:0 4px 12px #0002; display:none; white-space:nowrap; }
+  .node:hover .tt, .node.focus .tt { display:block; }
+
+  /* Modal */
+  .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.45);padding:16px}
+  .card{background:#fff;border-radius:14px;max-width:min(92vw,520px);padding:18px 18px 14px;box-shadow:0 12px 28px #0006}
+  .card h2{font-family:"Bungee";margin:0 0 8px;font-size:22px}
+  .card p{margin:8px 0 0;color:#334}
+  .btns{display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
+  .btn{border:none;border-radius:10px;padding:10px 14px;background:#0b3a59;color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+  .btn.primary{background:#1976d2}
+  .btn.ghost{background:#eef3f8;color:#0b3a59}
+  .btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed;pointer-events:none}
+
+  .foot{margin-top:10px;font-size:12px;color:#556}
+
+  /* === GROS BOUTON JOUER === */
+  .playFab{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    display:flex; align-items:center; gap:14px;
+    padding:16px 24px; border-radius:999px;
+    text-decoration:none; user-select:none;
+    background:linear-gradient(135deg,#ffd54f,#ffb300);
+    color:#2b2000; box-shadow:0 14px 36px rgba(0,0,0,.35), inset 0 2px 0 #fff6, inset 0 -2px 0 #0002;
+    border:2px solid #8A6A00;
+    min-width:280px;
+  }
+  .playFab .icon{font-size:24px; line-height:1}
+  .playFab .txt{display:flex; flex-direction:column; line-height:1.1}
+  .playFab .title{font-family:"Bungee",system-ui; font-size:22px; letter-spacing:.5px}
+  .playFab .sub{font-size:13px; opacity:.85}
+  .playFab[aria-disabled="true"]{
+    background:linear-gradient(135deg,#e0e0e0,#cfcfcf); color:#666; border-color:#9e9e9e;
+    box-shadow:0 10px 24px rgba(0,0,0,.2), inset 0 2px 0 #fff6, inset 0 -2px 0 #0001;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">Carte – Monde 1</h1>
+    <div class="legend" aria-hidden="true">
+      <span class="chip"><span class="dot" style="background:var(--passed)"></span>Validé</span>
+      <span class="chip"><span class="dot" style="background:var(--unlocked)"></span>Déverrouillé</span>
+      <span class="chip"><span class="dot" style="background:var(--locked)"></span>Verrouillé</span>
+      <span class="chip"><span class="dot" style="background:var(--boss)"></span>Boss</span>
+    </div>
+  </header>
+
+  <!-- Résumé monde (progress chip) -->
+  <div id="worldSummary" class="chip" style="margin:-2px 0 10px 0; width:max-content; display:none"></div>
+
+  <!-- Sélecteur de monde (carrousel) -->
+  <div class="worldStripWrap">
+    <button class="wbtn left" id="wLeft" aria-label="Monde précédent">⟵</button>
+    <div class="worldStrip" id="worldStrip" role="tablist" aria-label="Liste des mondes"></div>
+    <button class="wbtn right" id="wRight" aria-label="Monde suivant">⟶</button>
+  </div>
+
+  <div class="mapBox">
+    <svg id="map" viewBox="0 0 1000 600" aria-label="Carte du Monde" role="application">
+      <defs>
+        <symbol id="star" viewBox="-50 -50 100 100">
+          <path d="M0,-46 L13,-14 L45,-14 L18,6 L28,38 L0,20 L-28,38 L-18,6 L-45,-14 L-13,-14 Z" fill="#F2C200" stroke="#8A6A00" stroke-width="6" stroke-linejoin="round"/>
+        </symbol>
+        <linearGradient id="forest" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dff7ff"/>
+          <stop offset="100%" stop-color="#c3ecff"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Parallaxe décor -->
+      <g class="cloud slow" transform="translate(-10,40)">
+        <ellipse cx="100" cy="40" rx="80" ry="22" fill="#ffffff"/>
+        <ellipse cx="160" cy="50" rx="90" ry="24" fill="#ffffff"/>
+      </g>
+      <g class="cloud" transform="translate(-20,120)">
+        <ellipse cx="200" cy="40" rx="60" ry="18" fill="#ffffff"/>
+        <ellipse cx="250" cy="52" rx="70" ry="20" fill="#ffffff"/>
+      </g>
+      <g class="cloud fast" transform="translate(-15,220)">
+        <ellipse cx="140" cy="40" rx="70" ry="20" fill="#ffffff"/>
+        <ellipse cx="200" cy="52" rx="84" ry="22" fill="#ffffff"/>
+      </g>
+
+      <g opacity=".35">
+        <path d="M-50,520 C160,420 320,650 520,520 C700,410 880,640 1100,520 L1100,650 L-50,650 Z" fill="url(#forest)"/>
+        <path d="M-60,560 C120,480 300,680 520,560 C720,470 900,670 1120,560 L1120,700 L-60,700 Z" fill="#cfefff"/>
+      </g>
+
+      <path id="track" class="track"/>
+      <path id="trackOutline" class="trackOutline"/>
+      <path id="trackUnlocked" class="trackUnlocked"/>
+      <g id="nodes"></g>
+    </svg>
+
+    <div id="ribbonSoon" class="ribbonSoon" style="display:none;">Bientôt</div>
+    <div id="nextHint" class="hint">👉 Prochain objectif</div>
+  </div>
+
+  <p class="foot">
+    Progression par monde : <code>ce1_world{X}_progress</code> — Best perf : <code>w{X}_{id}_best</code> (score, temps).<br/>
+    Le bouton <b>JOUER</b> ouvre <code>index.html?world=X&warp=…</code>.
+  </p>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal" role="dialog" aria-modal="true">
+  <div class="card">
+    <h2 id="mTitle">Niveau</h2>
+    <p id="mState">—</p>
+    <div id="mStars" style="margin-top:10px"></div>
+    <div id="mPerf" style="margin-top:8px;font-size:13px;color:#455"></div>
+    <div class="btns">
+      <a id="mPlay" class="btn primary" href="#">▶️ Jouer</a>
+      <button class="btn ghost" id="mQuick">Mission rapide</button>
+      <button class="btn ghost" id="mClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- GROS BOUTON JOUER -->
+<a id="playFab" class="playFab" href="#" aria-disabled="true">
+  <span class="icon">▶️</span>
+  <span class="txt">
+    <span id="fabTitle" class="title">JOUER</span>
+    <span id="fabSub" class="sub" aria-live="polite">Monde 1 — 1-1</span>
+  </span>
+</a>
+
+<script src="./worlds-config.js"></script>
+<script>
+(function(){
+  // ====== Chemin vers le jeu ======
+  const GAME_PATH = "./index.html"; // même dossier que worldmap.html
+
+  // ====== Etat global ======
+  const params    = new URLSearchParams(location.search);
+  let WORLD       = parseInt(params.get('world') || '1', 10);
+  const title     = document.getElementById('title');
+  const ribbon    = document.getElementById('ribbonSoon');
+
+  // Play FAB elements
+  const $fab   = document.getElementById('playFab');
+  const $fT    = document.getElementById('fabTitle');
+  const $fS    = document.getElementById('fabSub');
+
+  // Sélection courante pour le gros bouton
+  let currentSelection = null; // {world, node, comingSoon}
+
+  // ===== Monde Strip =====
+  const strip = document.getElementById('worldStrip');
+  const btnL  = document.getElementById('wLeft');
+  const btnR  = document.getElementById('wRight');
+
+  function loadProgress(world){
+    const key = `ce1_world${world}_progress`;
+    const def = { unlocked:1, passed:[false,false,false,false] };
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return def;
+      const obj = JSON.parse(raw);
+      if(!Array.isArray(obj.passed)) obj.passed=[false,false,false,false];
+      if(obj.passed.length<4) obj.passed=[...obj.passed, ...Array(4-obj.passed.length).fill(false)];
+      return { unlocked:1, ...obj };
+    }catch(e){ return def; }
+  }
+
+  function bestKey(world, id){ return `w${world}_${id}_best`; }
+  function getBest(world, id){
+    try{ return JSON.parse(localStorage.getItem(bestKey(world,id))||'null'); }catch(e){ return null; }
+  }
+  // Hook public à appeler depuis le jeu quand une partie se termine
+  window.saveBest = function saveBest(world, id, {score, timeMs}){
+    const k = bestKey(world, id);
+    const prev = getBest(world, id) || {};
+    const better = (!prev.score || score>prev.score) || (!prev.timeMs || timeMs<prev.timeMs);
+    if(better) localStorage.setItem(k, JSON.stringify({score, timeMs, at: Date.now()}));
+  }
+
+  function worldCompletion(world){
+    const p = loadProgress(world);
+    const totalPlayable = 4; // 1-1 .. 1-4
+    const passedCount = (p.passed||[]).filter(Boolean).length;
+    return { passedCount, totalPlayable, pct: Math.round((passedCount/totalPlayable)*100) };
+  }
+
+  function buildWorldStrip(){
+    strip.innerHTML = '';
+    const wcfgAll = (window.worldsConfig||{});
+    const maxWorld = Math.max(5, Math.max(...Object.keys(wcfgAll).map(n=>+n||1), 1));
+    for(let i=1;i<=maxWorld;i++){
+      const wcfg = wcfgAll[i] || {name:'Monde '+i};
+      const card = document.createElement('button');
+      card.className = 'wcard' + (i===WORLD ? ' active':'');
+      card.setAttribute('role','tab');
+      card.setAttribute('aria-selected', i===WORLD ? 'true':'false');
+      const {passedCount,totalPlayable,pct} = worldCompletion(i);
+      card.innerHTML = `<div><div class="wname">Monde ${i}</div><div class="wmeta">${wcfg.name||''}</div></div><div class="chip" aria-hidden="true">${passedCount}/${totalPlayable} • ${pct}%</div>`;
+      card.onclick = ()=> switchWorld(i);
+      strip.appendChild(card);
+    }
+  }
+  btnL.onclick = ()=> strip.scrollBy({left:-260, behavior:'smooth'});
+  btnR.onclick = ()=> strip.scrollBy({left:+260, behavior:'smooth'});
+
+  function switchWorld(w){
+    WORLD = w;
+    history.replaceState(null,'',`?world=${WORLD}`);
+    currentSelection = null; // recalculer
+    render();
+    buildWorldStrip();
+  }
+
+  // ====== Rendu carte ======
+  const svg       = document.getElementById('map');
+  const gNodes    = document.getElementById('nodes');
+  const gTrack    = document.getElementById('track');
+  const gTrackOut = document.getElementById('trackOutline');
+  const gTrackUn  = document.getElementById('trackUnlocked');
+  const hint      = document.getElementById('nextHint');
+  const $sum      = document.getElementById('worldSummary');
+
+  let NODE_LIST = []; // pour navigation directionnelle
+  let focusedIndex = 0;
+
+  function pathFromEdges(NODES, EDGES){
+    if(!EDGES.length) return `M ${NODES[0].x} ${NODES[0].y}`;
+    const M = `M ${NODES[0].x} ${NODES[0].y}`;
+    const L = EDGES.map(([a,b])=>`L ${NODES[b].x} ${NODES[b].y}`).join(' ');
+    return `${M} ${L}`;
+  }
+
+  function render(){
+    const cfg = (window.worldsConfig||{})[WORLD];
+    if(!cfg){ console.warn('Monde inconnu', WORLD); return; }
+    const {NODES:baseNodes, EDGES, comingSoon=false, name='', hue} = cfg;
+
+    // teinte de fond personnalisée par monde (facultatif dans worlds-config.js)
+    if(typeof hue === 'number'){
+      document.documentElement.style.setProperty('--worldHue', hue);
+    }
+
+    title.textContent = `Carte – Monde ${WORLD}${name?(' : '+name):''}`;
+    ribbon.style.display = comingSoon ? 'block' : 'none';
+
+    const progress = loadProgress(WORLD);
+
+    // Enrichir nœuds avec leur état
+    const NODES = baseNodes.map((n,i)=>{
+      if(n.boss){
+        const unlocked = !!progress.passed[3]; // boss déverrouillé si 1-4 validé
+        return {...n, state: unlocked ? 'unlocked' : 'locked', passed:false};
+      }else{
+        const unlocked = (i===0) || !!progress.passed[i-1];
+        const passed   = !!progress.passed[i];
+        return {...n, state: passed ? 'passed' : (unlocked ? 'unlocked' : 'locked'), passed};
+      }
+    });
+
+    // Résumé monde
+    const {passedCount,totalPlayable,pct} = worldCompletion(WORLD);
+    $sum.style.display = 'inline-flex';
+    $sum.textContent = `Validés ${passedCount}/${totalPlayable} • ${pct}% — Clef boss : 1-4`;
+
+    // Tracé
+    const track = pathFromEdges(NODES, EDGES);
+    gTrack.setAttribute('d', track);
+    gTrackOut.setAttribute('d', track);
+
+    let lastUnlockedIdx = 0;
+    for(let i=0;i<NODES.length;i++){
+      if(NODES[i].state==='locked'){ break; }
+      lastUnlockedIdx = i;
+    }
+    const unlockedPath = pathFromEdges(NODES, EDGES.slice(0, Math.max(0,lastUnlockedIdx)));
+    gTrackUn.setAttribute('d', unlockedPath);
+
+    // Nœuds
+    gNodes.innerHTML='';
+    NODES.forEach((n,i)=>{
+      const node = document.createElementNS('http://www.w3.org/2000/svg','g');
+      node.setAttribute('class', `node ${n.state}`);
+      node.setAttribute('transform', `translate(${n.x},${n.y})`);
+      node.style.cursor = 'pointer';
+      node.setAttribute('tabindex','0');
+      node.setAttribute('role','button');
+      node.setAttribute('aria-label', n.boss ? `Boss du Monde ${WORLD} — ${n.state}` : `Niveau ${n.id} du Monde ${WORLD}, ${n.state}`);
+      node.addEventListener('click', ()=>{ selectNode(n, comingSoon, WORLD); openModal(n, comingSoon, WORLD); });
+      node.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ openModal(n, comingSoon, WORLD); }});
+
+      const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('r', 26); ring.setAttribute('class', `ring ${n.boss?'boss':n.state}`); node.appendChild(ring);
+
+      const halo = document.createElementNS('http://newwww.w3.org/2000/svg','circle'); // fallback typo-proof
+      halo.setAttribute('r', 34); halo.setAttribute('class','halo'); node.appendChild(halo);
+
+      const base = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      base.setAttribute('r', 22); base.setAttribute('class','base'); node.appendChild(base);
+
+      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+      label.setAttribute('class','label'); label.setAttribute('y', n.boss ? 4 : 2);
+      label.textContent = n.boss ? 'BOSS' : n.id; node.appendChild(label);
+
+      // étoiles difficulté
+      const stars = document.createElementNS('http://www.w3.org/2000/svg','g');
+      const offsetY = 42, maxStars = Math.max(3, n.diff||3);
+      for(let s=0; s<maxStars; s++){
+        const use = document.createElementNS('http://www.w3.org/2000/svg','use');
+        use.setAttributeNS('http://www.w3.org/1999/xlink','href','#star');
+        const cx = -24 + s*24; use.setAttribute('transform', `translate(${cx},${offsetY}) scale(0.22)`);
+        if(s >= (n.diff||3)) use.setAttribute('opacity','0.18');
+        stars.appendChild(use);
+      }
+      node.appendChild(stars);
+
+      if(n.state==='locked'){
+        const lock = document.createElementNS('http://www.w3.org/2000/svg','text');
+        lock.setAttribute('y', 6); lock.setAttribute('text-anchor','middle'); lock.setAttribute('font-size','18');
+        lock.textContent = '🔒'; node.appendChild(lock);
+      }
+
+      // Tooltip (objectif + best perf)
+      const fo = document.createElementNS('http://www.w3.org/2000/svg','foreignObject');
+      fo.setAttribute('x', -70); fo.setAttribute('y', -70); fo.setAttribute('width', 140); fo.setAttribute('height', 60);
+      const tip = document.createElement('div'); tip.className='tt';
+      const best = getBest(WORLD, n.boss? 'boss' : n.id);
+      const timeTxt = best?.timeMs ? ` ⏱ ${formatTime(best.timeMs)}` : '';
+      const scoreTxt = best?.score!=null ? ` ⭐ ${best.score}/10` : '';
+      tip.textContent = n.boss ? 'Affronte le boss !' : (n.hint || 'Objectif ≥ 8/10');
+      if(best) tip.textContent += ` • ${scoreTxt}${timeTxt}`;
+      fo.appendChild(tip); node.appendChild(fo);
+
+      gNodes.appendChild(node);
+    });
+
+    // Focus visuel (prochain objectif) & sélection par défaut
+    const focusIndex = NODES.findIndex(n=>!n.boss && n.state!=='passed' && n.state!=='locked');
+    const hb = document.getElementById('nextHint');
+    if(focusIndex>=0){
+      const n = NODES[focusIndex];
+      hb.style.left = `calc(${(n.x/1000*100).toFixed(3)}% - 70px)`;
+      hb.style.top  = `calc(${(n.y/600*100).toFixed(3)}% - 72px)`;
+      hb.style.display = 'inline-flex';
+      gNodes.querySelectorAll('.node')[focusIndex].classList.add('focus');
+    } else hb.style.display='none';
+
+    // Sélection par défaut pour le gros bouton si rien encore choisi
+    if(!currentSelection){
+      const defNode = (focusIndex>=0) ? NODES[focusIndex]
+                    : (NODES[NODES.length-1].state==='unlocked' ? NODES[NODES.length-1] : NODES[0]);
+      selectNode(defNode, comingSoon, WORLD);
+      // Focus index pour la navigation
+      focusedIndex = Math.max(0, focusIndex>=0 ? focusIndex : 0);
+    }
+
+    // Confetti si le monde passe terminé
+    celebrateIfCompleted(WORLD, (progress.passed||[]).filter(Boolean).length);
+
+    // Mise à jour du strip actif
+    Array.from(strip.children).forEach((el,idx)=>{
+      el.classList.toggle('active', (idx+1)===WORLD);
+      el.setAttribute('aria-selected', (idx+1)===WORLD ? 'true':'false');
+    });
+
+    // Mémoriser la liste pour nav directionnelle
+    NODE_LIST = NODES.map(n=>({x:n.x,y:n.y, ...n}));
+  }
+
+  // ====== MODAL ======
+  const $modal = document.getElementById('modal');
+  const $mTitle = document.getElementById('mTitle');
+  const $mState = document.getElementById('mState');
+  const $mStars = document.getElementById('mStars');
+  const $mPerf  = document.getElementById('mPerf');
+  const $mPlay  = document.getElementById('mPlay');
+  const $mQuick = document.getElementById('mQuick');
+  document.getElementById('mClose').onclick = ()=> $modal.style.display='none';
+  $modal.addEventListener('click', (e)=>{ if(e.target===$modal) $modal.style.display='none'; });
+
+  function openModal(n, comingSoon, world){
+    $mTitle.textContent = n.boss ? `Monde ${world} — Boss` : `Monde ${world} — ${n.id}`;
+    $mStars.innerHTML='';
+    const row = document.createElement('div');
+    row.style.display='flex'; row.style.gap='6px'; row.style.alignItems='center';
+    const maxStars = Math.max(3, n.diff||3);
+    for(let s=0;s<maxStars;s++){
+      const span = document.createElement('span');
+      span.textContent = '★';
+      span.style.fontSize='20px';
+      span.style.color = (s < (n.diff||3)) ? '#F2C200' : '#d0c7a8';
+      row.appendChild(span);
+    }
+    $mStars.appendChild(row);
+
+    let text='';
+    if(comingSoon){ text = '🧩 Monde en préparation. Le niveau n’est pas encore disponible.'; }
+    else if(n.boss){ text = (n.state==='unlocked') ? 'Déverrouillé. Tu peux affronter le boss !' : 'Verrouillé : termine le niveau 1-4 (≥ 8/10).'; }
+    else { if(n.state==='passed') text = '✅ Validé : tu as obtenu ≥ 8/10.'; else if(n.state==='unlocked') text = '🟡 Déverrouillé : objectif ≥ 8/10 pour valider.'; else text = `🔒 Verrouillé : termine le précédent avec ≥ 8/10.`; }
+    $mState.textContent = text;
+
+    // Best perf + médaille
+    const best = getBest(world, n.boss?'boss':n.id);
+    if(best){
+      const medal = best.score>=10 ? '🥇 Or' : best.score>=9 ? '🥈 Argent' : best.score>=8 ? '🥉 Bronze' : null;
+      $mPerf.textContent = `Meilleure perf : ${best.score ?? '-'} /10 • ⏱ ${formatTime(best.timeMs)}${medal?` • Médaille : ${medal}`:''}`;
+    } else { $mPerf.textContent = ''; }
+
+    const enabled = !comingSoon && (n.state!=='locked');
+    const param   = n.boss ? 'boss' : n.id;
+    $mPlay.textContent = n.boss ? '▶️ Affronter le Boss' : `▶️ Jouer ${n.id}`;
+    $mPlay.href = `${GAME_PATH}?world=${world}&warp=${encodeURIComponent(param)}`;
+    $mPlay.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    if(enabled) $mPlay.classList.add('primary'); else $mPlay.classList.remove('primary');
+
+    // Mission rapide (enchaîne 3 nœuds non validés si possible)
+    $mQuick.onclick = ()=>{
+      const seq = buildQuickMission(world);
+      if(seq.length){ location.href = `${GAME_PATH}?world=${world}&warp=${encodeURIComponent(seq.join(','))}`; }
+    };
+
+    $modal.style.display='grid';
+  }
+
+  // ====== Gros bouton JOUER (FAB) ======
+  function selectNode(n, comingSoon, world){
+    currentSelection = { world, node:n, comingSoon };
+    const enabled = !comingSoon && (n.state!=='locked');
+    const param   = n.boss ? 'boss' : n.id;
+
+    $fT.textContent = n.boss ? 'AFFRONTER LE BOSS' : 'JOUER';
+    $fS.textContent = n.boss ? `Monde ${world} — Boss` : `Monde ${world} — ${n.id}`;
+    $fab.href = `${GAME_PATH}?world=${world}&warp=${encodeURIComponent(param)}`;
+    $fab.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
+
+  // Enter = cliquer le gros bouton si actif
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && $modal.style.display!=='grid' && $fab.getAttribute('aria-disabled')==='false'){
+      e.preventDefault(); location.href = $fab.href; }
+    if(e.key === 'Escape' && $modal.style.display==='grid'){ $modal.style.display='none'; }
+  });
+
+  // ====== Navigation directionnelle (clavier / TNI) ======
+  function setFocus(i){
+    focusedIndex = Math.max(0, Math.min(NODE_LIST.length - 1, i));
+    // Visuel focus
+    gNodes.querySelectorAll('.node').forEach((el, idx)=>{ el.classList.toggle('focus', idx===focusedIndex); });
+    // Met à jour FAB par défaut sans ouvrir la modale
+    const n = NODE_LIST[focusedIndex];
+    selectNode(n, (window.worldsConfig||{})[WORLD]?.comingSoon, WORLD);
+  }
+  function nearestNode(fromIdx, dx, dy){
+    const from = NODE_LIST[fromIdx];
+    const candidates = NODE_LIST
+      .map((n,idx)=>({n,idx, vx:n.x-from.x, vy:n.y-from.y}))
+      .filter(o=> (dx===0 || Math.sign(o.vx)===Math.sign(dx)) && (dy===0 || Math.sign(o.vy)===Math.sign(dy)) && o.idx!==fromIdx)
+      .map(o=> ({...o, dist: Math.hypot(o.vx, o.vy)}))
+      .sort((a,b)=> a.dist - b.dist);
+    return candidates.length ? candidates[0].idx : fromIdx;
+  }
+  window.addEventListener('keydown', (e)=>{
+    const key = e.key.toLowerCase();
+    if(['arrowleft','a','q'].includes(key)) { e.preventDefault(); setFocus(nearestNode(focusedIndex,-1,0)); }
+    if(['arrowright','d'].includes(key))    { e.preventDefault(); setFocus(nearestNode(focusedIndex, 1,0)); }
+    if(['arrowup','w','z'].includes(key))   { e.preventDefault(); setFocus(nearestNode(focusedIndex, 0,-1)); }
+    if(['arrowdown','s'].includes(key))     { e.preventDefault(); setFocus(nearestNode(focusedIndex, 0, 1)); }
+    if(key==='enter' && $modal.style.display!=='grid'){ const n = NODE_LIST[focusedIndex]; openModal(n, (window.worldsConfig||{})[WORLD]?.comingSoon, WORLD); }
+  });
+
+  // ====== Mission rapide : choisit 3 nœuds à travailler ======
+  function buildQuickMission(world){
+    const cfg = (window.worldsConfig||{})[world];
+    const progress = loadProgress(world);
+    const list = cfg.NODES.filter(n=>!n.boss);
+    const toWork = list.filter((n,idx)=>!progress.passed[idx]).map(n=>n.id);
+    const pick = (arr,n)=> arr.slice(0,Math.min(n,arr.length));
+    const seq = pick(toWork,3);
+    if(seq.length<3){ // compléter par niveaux déjà validés pour entraînement
+      const rest = list.map(n=>n.id).filter(id=>!seq.includes(id));
+      while(seq.length<3 && rest.length) seq.push(rest.shift());
+    }
+    return seq;
+  }
+
+  // ====== Confetti léger (canvas) ======
+  let confettiDoneKey = (w)=>`w${w}_confetti_at`;
+  function celebrateIfCompleted(world, passedCount){
+    const was = parseInt(localStorage.getItem(confettiDoneKey(world))||'0',10);
+    if(passedCount===4 && !was){ // monde terminé
+      fireConfetti();
+      localStorage.setItem(confettiDoneKey(world), String(Date.now()));
+    }
+    if(passedCount<4 && was){ // reset si on réinitialise la progression
+      localStorage.removeItem(confettiDoneKey(world));
+    }
+  }
+  function fireConfetti(){
+    const c = document.createElement('canvas'); c.width = innerWidth; c.height = innerHeight; c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:5';
+    document.body.appendChild(c); const ctx = c.getContext('2d');
+    const parts = Array.from({length:120}, ()=>({x:Math.random()*c.width, y:-20, vY: 2+Math.random()*3, vX: -1+Math.random()*2, s: 6+Math.random()*6, a: Math.random()*Math.PI}));
+    let t=0; const colors=['#ffd54f','#1eb980','#1976d2','#e53935','#ab47bc','#26c6da'];
+    function step(){ ctx.clearRect(0,0,c.width,c.height); t+=0.016; parts.forEach((p,i)=>{ p.x+=p.vX; p.y+=p.vY; p.a+=0.1; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a); ctx.fillStyle = colors[i%colors.length]; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore(); }); if(t<2.4) requestAnimationFrame(step); else document.body.removeChild(c); }
+    step();
+  }
+
+  // ====== Util ======
+  function formatTime(ms){ if(!ms && ms!==0) return '-'; const s = Math.floor(ms/1000); const m = Math.floor(s/60); const r = s%60; return `${m}:${String(r).padStart(2,'0')}`; }
+
+  // Init
+  buildWorldStrip();
+  render();
+})();
+</script>
+</body>
+</html>

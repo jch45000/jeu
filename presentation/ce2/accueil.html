@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Accueil</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #ececec;
+    }
+
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      width: 300px;
+    }
+
+    .card input,
+    .card button {
+      display: block;
+      width: 100%;
+      margin: 0.5rem 0;
+      padding: 0.7rem;
+      font-size: 1rem;
+    }
+
+    .btn-play {
+      background: #4caf50;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn-create {
+      background: #2196f3;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn-list {
+      background: #ff9800;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    #listeComptes {
+      margin-top: 1rem;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="accueil" class="card">
+    <h2>Connexion</h2>
+    <input type="text" placeholder="Login" id="login">
+    <button class="btn-play" onclick="verifierLogin()">Jouer</button>
+    <button class="btn-create" onclick="creerCompte()">Créer un compte</button>
+    <button class="btn-list" onclick="afficherLogins()">Voir les comptes</button>
+    <button class="btn-list" onclick="window.location.href='scores.html'">Voir les scores</button>
+
+    <div id="listeComptes"></div>
+  </div>
+
+  <script>
+
+    // URL de ton endpoint MockAPI
+    const API_URL = "https://68b91513b71540504329ea40.mockapi.io/users";
+
+    // --- Création de compte ---
+    async function creerCompte() {
+      const loginInput = prompt("Choisissez un login :");
+      if (!loginInput) return;
+
+      const login = loginInput.trim();
+      if (login === "") return;
+
+      // Récupérer tous les comptes existants
+      const res = await fetch(API_URL);
+      const allUsers = await res.json();
+
+      // Vérifier si le login existe déjà (ignorer espaces et casse)
+      const exists = allUsers.some(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
+      if (exists) {
+        alert("Ce login existe déjà !");
+        return;
+      }
+
+      // Créer le compte
+      await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: login }) });
+      alert("Compte créé avec succès !");
+    }
+
+    // --- Vérifie le login avant de lancer le jeu ---
+    async function verifierLogin() {
+      const loginInput = document.getElementById('login').value;
+      const login = loginInput.trim();
+      if (login === "") {
+        alert("Veuillez entrer un login !");
+        return;
+      }
+
+      const res = await fetch(API_URL);
+      const allUsers = await res.json();
+
+      // Trouver l'utilisateur correspondant
+      const user = allUsers.find(u => u.login && u.login.trim().toLowerCase() === login.toLowerCase());
+
+      if (!user) {
+        alert("Login inconnu. Créez un compte d'abord !");
+        return;
+      }
+
+      // Récupérer le score
+      const score = user.score ?? 0; // si pas de score, mettre 0
+
+      // Redirection vers le jeu avec login ET score dans l’URL
+      window.location.href = "index.html?login=" + encodeURIComponent(login) + "&score=" + encodeURIComponent(score);
+    }
+
+    // --- Afficher la liste des logins ---
+    async function afficherLogins() {
+      const res = await fetch(API_URL);
+      const liste = await res.json();
+      const container = document.getElementById("listeComptes");
+      if (liste.length === 0) {
+        container.innerHTML = "<p>Aucun compte enregistré.</p>";
+      } else {
+        container.innerHTML =
+          "<p>Comptes existants :</p><ul>" +
+          liste.map(l => "<li>" + l.login + "</li>").join("") +
+          "</ul>";
+      }
+    }
+  </script>
+
+</body>
+
+</html>
